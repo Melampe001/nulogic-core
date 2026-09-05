@@ -7,9 +7,9 @@ TokyoApps Global Technologies - NULOGIC_CORE
 
 from modules.database import SessionLocal, engine, Base
 from services.user_service import UserService
+from modules.models import User
 
 def run_test():
-    # Asegurar tablas creadas
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     
@@ -18,27 +18,25 @@ def run_test():
         print("  VERIFICACIÓN DE SERVICIOS DE NEGOCIO")
         print("==================================================")
         
-        # Intentar registrar un usuario de prueba (con manejo si ya existe)
         test_email = "test.enterprise@tokyoapps.com"
-        try:
-            user = UserService.create_user_user_with_consent if hasattr(UserService, 'create_user_with_consent') else None
-            # Llamada oficial
-            user = UserService.create_user_with_consent(
-                db=db,
-                email=test_email,
-                hashed_password="secure_hashed_password_sample",
-                gdpr=True,
-                lfpdppp=True,
-                ip_address="127.0.0.1"
-            )
-        except ValueError as ve:
-            print(f"[INFO] {ve}")
-            user = db.query(UserService).filter_by(email=test_email).first() if False else None
-            # Recuperar usuario existente para prueba de transacción
-            from modules.models import User
-            user = db.query(User).filter(User.email == test_email).first()
+        user = db.query(User).filter(User.email == test_email).first()
+        
+        if not user:
+            try:
+                user = UserService.create_user_with_consent(
+                    db=db,
+                    email=test_email,
+                    hashed_password="secure_hashed_password_sample",
+                    gdpr=True,
+                    lfpdppp=True,
+                    ip_address="127.0.0.1"
+                )
+            except ValueError as ve:
+                print(f"[INFO] {ve}")
+                user = db.query(User).filter(User.email == test_email).first()
+        else:
+            print(f"[INFO] El usuario {test_email} ya existe en la base de datos.")
 
-        # Registrar transacción de prueba asociada
         if user:
             UserService.add_transaction(
                 db=db,
