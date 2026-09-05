@@ -36,3 +36,28 @@ def test_register_user_success():
     data = response.json()
     assert data["email"] == "api.test@tokyoapps.com"
     assert data["status"] == "registered_with_consent"
+
+def test_create_transaction_success():
+    # 1. Registrar usuario previo
+    user_payload = {
+        "email": "fintech.user@tokyoapps.com",
+        "password": "securepassword123",
+        "gdpr_accepted": True,
+        "lfpdppp_accepted": True
+    }
+    user_res = client.post("/users/", json=user_payload)
+    user_id = user_res.json()["id"]
+
+    # 2. Crear transacción asociada
+    tx_payload = {
+        "user_id": user_id,
+        "gateway": "okx_v5",
+        "amount": 250.50,
+        "currency": "USDT",
+        "reference_id": "TX_TEST_OKX_12345"
+    }
+    response = client.post("/transactions/", json=tx_payload)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["reference_id"] == "TX_TEST_OKX_12345"
+    assert data["status"] == "completed"

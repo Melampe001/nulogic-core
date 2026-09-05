@@ -12,7 +12,6 @@ from modules.models import User, Transaction
 from services.user_service import UserService
 from pydantic import BaseModel, EmailStr
 
-# Asegurar creación de tablas al arrancar
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -49,7 +48,7 @@ def register_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
         user = UserService.create_user_with_consent(
             db=db,
             email=payload.email,
-            hashed_password=payload.password, # En producción usar hashing real (bcrypt)
+            hashed_password=payload.password,
             gdpr=payload.gdpr_accepted,
             lfpdppp=payload.lfpdppp_accepted,
             ip_address="127.0.0.1"
@@ -60,6 +59,14 @@ def register_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
 
 @app.post("/transactions/", status_code=status.HTTP_201_CREATED)
 def create_transaction(payload: TransactionRequest, db: Session = Depends(get_db)):
+    # Validar que el usuario exista
+    user = db.query(User).filter(User.id == payload.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail=f"Usuario con ID {payload.user_id} no encontrado."
+        )
+    
     try:
         tx = UserService.add_transaction(
             db=db,
@@ -70,5 +77,5 @@ def create_transaction(payload: TransactionRequest, db: Session = Depends(get_db
             reference_id=payload.reference_id
         )
         return {"transaction_id": tx.id, "reference_id": tx.reference_id, "status": tx.status}
-    except Exception as e:
+    Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
