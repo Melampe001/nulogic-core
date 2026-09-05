@@ -1,24 +1,33 @@
-﻿name: NULOGIC_CORE Enterprise CI/CD
+﻿name: NULOGIC_CORE CI Pipeline
 
 on:
   push:
-    branches: [ master, staging ]
+    branches: [ master, main ]
   pull_request:
-    branches: [ master, staging ]
+    branches: [ master, main ]
 
 jobs:
-  validate-and-test:
+  test:
     runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: ${{ matrix.python-version }}
 
-    - name: Verify Environment and Core Integrity
+    - name: Install Dependencies
       run: |
-        python -c "print('Python environment verified successfully')"
-        python main.py
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Pytest Suite
+      run: |
+        pytest -v
