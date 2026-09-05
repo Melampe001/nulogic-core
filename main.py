@@ -1,33 +1,74 @@
-﻿# ==============================================================================
-# NULOGIC_CORE - Orquestador Principal del Ecosistema
-# Autor: José Arturo Orozco Jaime (TokyoApps Global Technologies)
-# ==============================================================================
+﻿"""
+=============================================================================
+FastAPI Enterprise Endpoints & System Initialization
+TokyoApps Global Technologies - NULOGIC_CORE
+=============================================================================
+"""
 
-import os
-import sys
-from modules.payment_gateway import HybridPaymentGateway
-from modules.okx_v5_integration import OKXV5Connector
+from fastapi import FastAPI, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from modules.database import get_db, engine, Base
+from modules.models import User, Transaction
+from services.user_service import UserService
+from pydantic import BaseModel, EmailStr
 
-def initialize_system():
-    print("==================================================")
-    print("  NULOGIC_CORE ENTERPRISE SYSTEM INITIALIZATION  ")
-    print("  TokyoApps Global Technologies                  ")
-    print("==================================================")
+# Asegurar creación de tablas al arrancar
+Base.metadata.create_all(bind=engine)
 
-    # 1. Validación de Credenciales y Módulos
-    print("[*] Verificando módulos de pasarela de pagos y OKX V5...")
-    payment_gateway = HybridPaymentGateway()
-    okx_connector = OKXV5Connector()
+app = FastAPI(
+    title="NULOGIC_CORE Enterprise API",
+    version="1.0.0",
+    description="Fintech-compliant ecosystem with strict GDPR and LFPDPPP governance."
+)
 
-    # 2. Prueba de conectividad simulada / segura
-    balance_status = okx_connector.fetch_account_balance()
-    print(f"[OKX V5 Sync Status]: {balance_status}")
+class UserCreateRequest(BaseModel):
+    email: EmailStr
+    password: str
+    gdpr_accepted: bool
+    lfpdppp_accepted: bool
 
-    # 3. Verificación de cumplimiento legal
-    compliance_mode = os.getenv("GDPR_LFPDPPP_COMPLIANCE", "true")
-    print(f"[Compliance Check]: Protocolos de consentimiento LFPDPPP/GDPR activos ({compliance_mode}).")
-    
-    print("[SUCCESS] NULOGIC_CORE inicializado operativamente bajo estándares globales.")
+class TransactionRequest(BaseModel):
+    user_id: int
+    gateway: str
+    amount: float
+    currency: str = "USDT"
+    reference_id: str
 
-if __name__ == "__main__":
-    initialize_system()
+@app.get("/")
+def health_check():
+    return {
+        "system": "NULOGIC_CORE",
+        "status": "operational",
+        "compliance": "GDPR/LFPDPPP Active",
+        "author": "José Arturo Orozco Jaime (TokyoApps)"
+    }
+
+@app.post("/users/", status_code=status.HTTP_201_CREATED)
+def register_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
+    try:
+        user = UserService.create_user_with_consent(
+            db=db,
+            email=payload.email,
+            hashed_password=payload.password, # En producción usar hashing real (bcrypt)
+            gdpr=payload.gdpr_accepted,
+            lfpdppp=payload.lfpdppp_accepted,
+            ip_address="127.0.0.1"
+        )
+        return {"id": user.id, "email": user.email, "status": "registered_with_consent"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@app.post("/transactions/", status_code=status.HTTP_201_CREATED)
+def create_transaction(payload: TransactionRequest, db: Session = Depends(get_db)):
+    try:
+        tx = UserService.add_transaction(
+            db=db,
+            user_id=payload.user_id,
+            gateway=payload.gateway,
+            amount=payload.amount,
+            currency=payload.currency,
+            reference_id=payload.reference_id
+        )
+        return {"transaction_id": tx.id, "reference_id": tx.reference_id, "status": tx.status}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
