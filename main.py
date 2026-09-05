@@ -59,7 +59,6 @@ def register_user(payload: UserCreateRequest, db: Session = Depends(get_db)):
 
 @app.post("/transactions/", status_code=status.HTTP_201_CREATED)
 def create_transaction(payload: TransactionRequest, db: Session = Depends(get_db)):
-    # Validar que el usuario exista
     user = db.query(User).filter(User.id == payload.user_id).first()
     if not user:
         raise HTTPException(
@@ -77,5 +76,5 @@ def create_transaction(payload: TransactionRequest, db: Session = Depends(get_db
             reference_id=payload.reference_id
         )
         return {"transaction_id": tx.id, "reference_id": tx.reference_id, "status": tx.status}
-    Exception as e:
+    except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
