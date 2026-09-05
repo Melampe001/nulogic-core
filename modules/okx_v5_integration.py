@@ -15,17 +15,14 @@ class OKXV5Connector:
         self.base_url = "https://www.okx.com"
 
     def generate_signature(self, timestamp, method, request_path, body=""):
-        """Genera la firma criptográfica exigida por la API V5 de OKX"""
         message = timestamp + method.upper() + request_path + body
         mac = hmac.new(self.secret_key.encode('utf-8'), message.encode('utf-8'), hashlib.sha256)
         return base64.b64encode(mac.digest()).decode('utf-8')
 
     def fetch_account_balance(self):
-        """Consulta el estado del balance y saldos activos en el exchange"""
         timestamp = str(int(time.time() * 1000))
         path = "/api/v5/account/balance"
         print(f"[OKX V5] Conectando a {self.base_url}{path} para sincronización de balance...")
-        # Validación de entorno seguro y llaves configuradas
         if not self.api_key:
             print("[ALERTA] OKX_API_KEY no detectada en entorno. Operando en modo simulación segura.")
             return {"code": "0", "data": [{"details": [{"ccy": "USDT", "cashBal": "0.00"}]}]}
@@ -34,4 +31,3 @@ class OKXV5Connector:
 if __name__ == "__main__":
     okx = OKXV5Connector()
     print("[OK] Módulo OKX V5 inicializado correctamente.")
-__import__('sys').modules[__name__] = OKXV5Connector
